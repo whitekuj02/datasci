@@ -15,16 +15,20 @@ class DecisionTree:
         self.target_columns = target.name
         self.target = target
         self.tree = tree
+        self.chlid_router = {}
 
-    def root_decision(self):
+    def decisionTrain(self):
         if len(self.X_column) < 2:
-            return self.tree
+            return (self.tree, self.target.value_counts().index[0])
+
         target_mother_num = self.target.shape[0]
-        target_num = len(self.data.loc[self.data[self.target_columns] == self.target.value_counts().index[0]].value_counts().sort_index().to_numpy())
+        target_data = self.data.loc[self.data[self.target_columns] == self.target.value_counts().index[0]].value_counts().sort_index().to_numpy()
+        target_num = len(target_data)
         target_result_num = target_num / target_mother_num
-        if target_result_num == 0:
-            print(" 트리 끝 ")
-            return self.tree
+
+        if target_result_num == 1:
+            return (self.tree, self.target.value_counts().index[0])
+
         whole_data_entropy = entropy(target_result_num)
 
         result_df = pd.DataFrame()
@@ -54,14 +58,12 @@ class DecisionTree:
             add_result = pd.Series(result)
             result_df[i] = add_result
 
-        print(result_df)
         decision_index = result_df.max().idxmax()
-        print(decision_index)
 
         # 가장 큰 entropy 값이 0이거나 0보다 작으면 decision의 의미가 없음
         if result_df.max().max() <= 0:
-            print(" 트리 끝 ")
-            return self.tree
+            return (self.tree, self.target.value_counts().index[0])
+
         # tree index값을 nested list로 분리
         # 'District' 열의 고유한 카테고리 값을 얻음
         unique = self.data[decision_index].cat.categories
@@ -69,24 +71,45 @@ class DecisionTree:
         # 각 카테고리에 대한 인덱스를 중첩 리스트로 구성
         nested_index_list = [self.data[self.data[decision_index] == column].index.tolist() for column in unique]
         self.tree = nested_index_list
-        print(self.tree)
+
         # 다시 한 번 DecisionTree 생성 후 df에는 result_df.max().idxmax() 제거하며 각자의 leaf 데이터 ex) district는 3개의 leave로 3개의 class를 만들어야함
         # target은 나누어진 데이터의 target 값
         # 트리는 nested list index 별로 넘김
         result_tree = []
-        for i in self.tree:
+        result_tree_router = {}
+        for i, each_cat in zip(self.tree, unique):
             df_nest = self.data.drop(decision_index, axis=1)
             df_nest = df_nest.loc[i]
             target_nest = self.target.loc[i]
-            print(df_nest)
-            print(target_nest)
-            DT = DecisionTree(df_nest, target_nest, i)
-            each_tree = DT.root_decision()
+            DT= DecisionTree(df_nest, target_nest, i)
+            (each_tree, router) = DT.decisionTrain()
             result_tree.append(each_tree)
+            result_tree_router[decision_index + " " + each_cat] = router
         self.tree = result_tree
-        return result_tree
+        self.chlid_router = result_tree_router
 
-    #def decisionTest(self, test_df):
+        return (result_tree, result_tree_router)
+
+    def decisionTest(self, test_df, divide):
+        if divide == None:
+            divide = self.chlid_router
+        keys = list(divide.keys())
+        key_div = []
+
+        for s in keys:
+            split_words = s.split()  # 공백으로 분할
+            decision = split_words[0]
+            key_div.append(split_words[1])  # 분할된 단어를 새로운 리스트에 추가
+        div = None
+        idx = 0
+        for i in key_div:
+            if test_df[decision] == i:
+                div = divide[keys[idx]]
+                if isinstance(div, str):
+                    return div
+            idx += 1
+
+        return self.decisionTest(test_df, div)
 
 
 
@@ -103,13 +126,16 @@ df = pd.DataFrame({
 }, dtype="category")
 
 target = df["Outcome"]
-tree = [i for i in range(0, len(target))]
-
-print(df)
-print(target)
+tree = []
 
 DT = DecisionTree(df, target, tree)
 
-tree = DT.root_decision()
+(tree, router) = DT.decisionTrain()
 print(tree)
+print(router)
+
+
+# test set
+test_row = {"District": "Suburban", "House Type": "Detached", "Income":  "Low", "Previous": "Yes"}
+print("output of test_data is " + DT.decisionTest(test_row, None))
 
