@@ -18,9 +18,14 @@ class DecisionTree:
         self.chlid_router = {}
 
     def decisionTrain(self):
+        # column이 1개 이하 이면
         if len(self.X_column) < 2:
-            return (self.tree, self.target.value_counts().index[0])
-
+            # 확률 달아야 할 듯
+            X_pro = self.target.value_counts().to_numpy() / self.target.size
+            Y_pro = self.target.value_counts().index
+            return_data = str(Y_pro[0]) + ": " + str(X_pro[0] * 100) + "% " + self.target.value_counts().index[0]
+            print(return_data)
+            return (self.tree, return_data)
         target_mother_num = self.target.shape[0]
         target_data = self.data.loc[self.data[self.target_columns] == self.target.value_counts().index[0]].value_counts().sort_index().to_numpy()
         target_num = len(target_data)
