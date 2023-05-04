@@ -19,16 +19,23 @@ class DecisionTree:
 
     def decisionTrain(self):
         # column이 1개 이하 이면
-        if len(self.X_column) < 2:
+        if len(self.X_column) < 2 or self.target.shape[0] < 1:
             # 확률 달아야 할 듯
-            X_pro = self.target.value_counts().to_numpy() / self.target.size
+            if self.target.shape[0] < 1:
+                X_pro = np.array([0.5])
+            else:
+                X_pro = self.target.value_counts().to_numpy() / self.target.size
             Y_pro = self.target.value_counts().index
-            return_data = str(Y_pro[0]) + ": " + str(X_pro[0] * 100) + "% " + self.target.value_counts().index[0]
-            print(return_data)
+
+            if X_pro[0] == 1:
+                return_data = str(Y_pro[0])
+            else:
+                return_data = str(Y_pro[0]) + ": " + str(X_pro[0] * 100) + "% "
             return (self.tree, return_data)
+
         target_mother_num = self.target.shape[0]
         target_data = self.data.loc[self.data[self.target_columns] == self.target.value_counts().index[0]].value_counts().sort_index().to_numpy()
-        target_num = len(target_data)
+        target_num = sum(target_data)
         target_result_num = target_num / target_mother_num
 
         if target_result_num == 1:
@@ -63,8 +70,9 @@ class DecisionTree:
             add_result = pd.Series(result)
             result_df[i] = add_result
 
+        print(result_df)
         decision_index = result_df.max().idxmax()
-
+        print(decision_index)
         # 가장 큰 entropy 값이 0이거나 0보다 작으면 decision의 의미가 없음
         if result_df.max().max() <= 0:
             return (self.tree, self.target.value_counts().index[0])
@@ -92,7 +100,6 @@ class DecisionTree:
             result_tree_router[decision_index + " " + each_cat] = router
         self.tree = result_tree
         self.chlid_router = result_tree_router
-
         return (result_tree, result_tree_router)
 
     def decisionTest(self, test_df, divide):
@@ -130,6 +137,8 @@ df = pd.DataFrame({
                 "Responded", "Responded", "Not responded"]
 }, dtype="category")
 
+# "Previous": ["No", "Yes", "No", "No", "No", "Yes", "Yes", "No", "No", "No", "Yes", "Yes", "No", "Yes"],
+# , "Previous": "Yes"
 target = df["Outcome"]
 tree = []
 
